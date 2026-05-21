@@ -1,0 +1,40 @@
+name: BOUH Android APK Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-android-apk:
+    name: Build Android APK with EAS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Clean old lock files
+        run: |
+          rm -f yarn.lock
+          rm -f package-lock.json
+          rm -rf node_modules
+          rm -rf .yarn
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build Android APK
+        run: eas build --platform android --profile apk --non-interactive --wait
