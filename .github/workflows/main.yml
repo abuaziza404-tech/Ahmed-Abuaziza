@@ -1,4 +1,4 @@
-name: BOUH Android APK Build
+name: Build BOUH Android APK
 
 on:
   workflow_dispatch:
@@ -7,34 +7,114 @@ on:
       - main
 
 jobs:
-  build-android-apk:
-    name: Build Android APK with EAS
+  build-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout project
+      - name: Download project
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Fix package.json
+        run: |
+          cat > package.json <<'EOF'
+          {
+            "name": "bouh-gold-pro-ultra",
+            "version": "12.5.1",
+            "private": true,
+            "main": "expo/AppEntry.js",
+            "scripts": {
+              "start": "expo start",
+              "android": "expo start --android",
+              "web": "expo start --web"
+            },
+            "dependencies": {
+              "@react-native-async-storage/async-storage": "1.23.1",
+              "expo": "~52.0.47",
+              "expo-asset": "~11.0.5",
+              "expo-file-system": "~18.0.12",
+              "expo-location": "~18.0.10",
+              "expo-status-bar": "~2.0.1",
+              "react": "18.3.1",
+              "react-native": "0.76.9",
+              "react-native-maps": "1.18.0",
+              "react-native-svg": "15.8.0"
+            },
+            "devDependencies": {
+              "@babel/core": "^7.25.2"
+            }
+          }
+          EOF
 
-      - name: Clean old lock files
+      - name: Fix app.json
+        run: |
+          cat > app.json <<'EOF'
+          {
+            "expo": {
+              "name": "BOUH GOLD PRO ULTRA",
+              "slug": "bouh-gold-pro-ultra",
+              "version": "12.5.1",
+              "orientation": "portrait",
+              "userInterfaceStyle": "dark",
+              "assetBundlePatterns": [
+                "**/*"
+              ],
+              "android": {
+                "package": "com.abuaziza.bouhgoldpro",
+                "versionCode": 12501,
+                "permissions": [
+                  "ACCESS_FINE_LOCATION",
+                  "ACCESS_COARSE_LOCATION"
+                ]
+              }
+            }
+          }
+          EOF
+
+      - name: Fix eas.json
+        run: |
+          cat > eas.json <<'EOF'
+          {
+            "cli": {
+              "version": ">= 13.0.0"
+            },
+            "build": {
+              "apk": {
+                "android": {
+                  "buildType": "apk"
+                }
+              },
+              "production": {
+                "android": {
+                  "buildType": "app-bundle"
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Clean old files
         run: |
           rm -f yarn.lock
           rm -f package-lock.json
           rm -rf node_modules
           rm -rf .yarn
+          echo "legacy-peer-deps=true" > .npmrc
+          echo "fund=false" >> .npmrc
+          echo "audit=false" >> .npmrc
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build Android APK
+      - name: Setup Expo EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK
         run: eas build --platform android --profile apk --non-interactive --wait
