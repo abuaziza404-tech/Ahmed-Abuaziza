@@ -1,117 +1,309 @@
-name: Build BOUH Android APK
+name: Build BOUH APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
-  build-apk:
+  build-android:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download project
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Fix package.json
+      - name: Create clean Expo project files
         run: |
+          rm -rf node_modules package-lock.json yarn.lock app.json eas.json App.js package.json
+
           cat > package.json <<'EOF'
           {
-            "name": "bouh-gold-pro-ultra",
-            "version": "12.5.1",
+            "name": "bouh-gold-field-commander",
+            "version": "12.5.0",
             "private": true,
-            "main": "expo/AppEntry.js",
+            "main": "node_modules/expo/AppEntry.js",
             "scripts": {
               "start": "expo start",
-              "android": "expo start --android",
-              "web": "expo start --web"
+              "android": "expo run:android",
+              "build:android": "eas build -p android --profile preview --non-interactive"
             },
             "dependencies": {
-              "@react-native-async-storage/async-storage": "1.23.1",
-              "expo": "~52.0.47",
-              "expo-asset": "~11.0.5",
-              "expo-file-system": "~18.0.12",
-              "expo-location": "~18.0.10",
-              "expo-status-bar": "~2.0.1",
-              "react": "18.3.1",
-              "react-native": "0.76.9",
-              "react-native-maps": "1.18.0",
-              "react-native-svg": "15.8.0"
+              "expo": "~51.0.28",
+              "expo-status-bar": "~1.12.1",
+              "react": "18.2.0",
+              "react-native": "0.74.5",
+              "react-native-webview": "13.8.6"
             },
             "devDependencies": {
-              "@babel/core": "^7.25.2"
+              "@babel/core": "^7.24.0",
+              "eas-cli": "^12.6.2"
             }
           }
           EOF
 
-      - name: Fix app.json
-        run: |
           cat > app.json <<'EOF'
           {
             "expo": {
-              "name": "BOUH GOLD PRO ULTRA",
-              "slug": "bouh-gold-pro-ultra",
-              "version": "12.5.1",
+              "name": "BOUH GOLD V12.5",
+              "slug": "bouh-gold-v12-5",
+              "version": "12.5.0",
               "orientation": "portrait",
+              "icon": "./icon.png",
               "userInterfaceStyle": "dark",
-              "assetBundlePatterns": ["**/*"],
+              "splash": {
+                "resizeMode": "contain",
+                "backgroundColor": "#050805"
+              },
+              "assetBundlePatterns": [
+                "**/*"
+              ],
               "android": {
-                "package": "com.abuaziza.bouhgoldpro",
-                "versionCode": 12501,
+                "package": "com.bouh.gold.v125",
+                "versionCode": 125,
                 "permissions": [
                   "ACCESS_FINE_LOCATION",
-                  "ACCESS_COARSE_LOCATION"
+                  "ACCESS_COARSE_LOCATION",
+                  "INTERNET"
                 ]
-              }
-            }
-          }
-          EOF
-
-      - name: Fix eas.json
-        run: |
-          cat > eas.json <<'EOF'
-          {
-            "cli": {
-              "version": ">= 13.0.0"
-            },
-            "build": {
-              "apk": {
-                "android": {
-                  "buildType": "apk"
+              },
+              "extra": {
+                "eas": {
+                  "projectId": "00000000-0000-0000-0000-000000000000"
                 }
               }
             }
           }
           EOF
 
-      - name: Clean old files
-        run: |
-          rm -f yarn.lock
-          rm -f package-lock.json
-          rm -rf node_modules
-          rm -rf .yarn
-          echo "legacy-peer-deps=true" > .npmrc
-          echo "fund=false" >> .npmrc
-          echo "audit=false" >> .npmrc
+          cat > eas.json <<'EOF'
+          {
+            "cli": {
+              "version": ">= 12.0.0"
+            },
+            "build": {
+              "preview": {
+                "android": {
+                  "buildType": "apk"
+                }
+              },
+              "production": {
+                "android": {
+                  "buildType": "app-bundle"
+                }
+              }
+            }
+          }
+          EOF
+
+          cat > App.js <<'EOF'
+          import React, { useState } from 'react';
+          import {
+            SafeAreaView,
+            View,
+            Text,
+            TextInput,
+            TouchableOpacity,
+            ScrollView,
+            StyleSheet,
+            Alert
+          } from 'react-native';
+          import { StatusBar } from 'expo-status-bar';
+
+          export default function App() {
+            const [lat, setLat] = useState('');
+            const [lon, setLon] = useState('');
+            const [notes, setNotes] = useState('');
+            const [result, setResult] = useState(null);
+
+            function analyze() {
+              const la = parseFloat(lat);
+              const lo = parseFloat(lon);
+
+              if (Number.isNaN(la) || Number.isNaN(lo)) {
+                Alert.alert('تنبيه', 'أدخل الإحداثيات بصيغة صحيحة مثل: 19.973186 و 36.745590');
+                return;
+              }
+
+              let score = 55;
+              let type = 'HOLD / فحص ميداني';
+              let gpz = 'Ground Type: Difficult / Severe، Gold Mode: High Yield، Sensitivity 8-11';
+
+              if (la >= 19.85 && la <= 20.05 && lo >= 36.70 && lo <= 36.85) {
+                score = 78;
+                type = 'GPZ-Regolith / Dark Slope / Wadi Trap';
+                gpz = 'Ground Type: Difficult، Gold Mode: High Yield، Sensitivity 9-12، Swing بطيء جداً';
+              }
+
+              if (la >= 20.60 && la <= 20.80 && lo >= 36.38 && lo <= 36.48) {
+                score = 72;
+                type = 'GH/GV Alteration Cluster / Quartz-Vein Check';
+                gpz = 'Ground Type: Normal إذا الأرض هادئة، Gold Mode: General/Deep، Sensitivity 12-15';
+              }
+
+              setResult({
+                score,
+                type,
+                gpz,
+                decision:
+                  score >= 85
+                    ? 'Target-B محتمل بشرط وجود بيانات خام وقياس ميداني'
+                    : score >= 70
+                    ? 'Candidate / افحص ميدانياً'
+                    : 'HOLD / لا تحفر قبل تأكيد بنيوي وميداني',
+              });
+            }
+
+            return (
+              <SafeAreaView style={styles.root}>
+                <StatusBar style="light" />
+                <ScrollView contentContainerStyle={styles.container}>
+                  <Text style={styles.title}>BOUH GOLD DEEP DETECTOR V12.5</Text>
+                  <Text style={styles.subtitle}>منظومة أبوعزيزة — نسخة ميدانية خفيفة</Text>
+
+                  <View style={styles.card}>
+                    <Text style={styles.cardTitle}>إدخال الإحداثية</Text>
+
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Latitude مثال: 19.973186"
+                      placeholderTextColor="#7b8a7b"
+                      keyboardType="numeric"
+                      value={lat}
+                      onChangeText={setLat}
+                    />
+
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Longitude مثال: 36.745590"
+                      placeholderTextColor="#7b8a7b"
+                      keyboardType="numeric"
+                      value={lon}
+                      onChangeText={setLon}
+                    />
+
+                    <TextInput
+                      style={[styles.input, styles.notes]}
+                      placeholder="ملاحظات الأرض: كوارتز، أرض سوداء، وادي، حفر قديمة..."
+                      placeholderTextColor="#7b8a7b"
+                      multiline
+                      value={notes}
+                      onChangeText={setNotes}
+                    />
+
+                    <TouchableOpacity style={styles.button} onPress={analyze}>
+                      <Text style={styles.buttonText}>تحليل سريع</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {result && (
+                    <View style={styles.card}>
+                      <Text style={styles.cardTitle}>نتيجة القرار</Text>
+                      <Text style={styles.line}>Score: {result.score}</Text>
+                      <Text style={styles.line}>Type: {result.type}</Text>
+                      <Text style={styles.line}>Decision: {result.decision}</Text>
+                      <Text style={styles.line}>GPZ Strategy: {result.gpz}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.card}>
+                    <Text style={styles.cardTitle}>قانون التشغيل</Text>
+                    <Text style={styles.line}>Structure → Pattern → Alteration → Confirmation → Decision</Text>
+                    <Text style={styles.line}>لا يتم إثبات الذهب من التطبيق وحده.</Text>
+                    <Text style={styles.line}>القرار النهائي: GPZ + كشف أرضي + عينة/تحليل.</Text>
+                  </View>
+                </ScrollView>
+              </SafeAreaView>
+            );
+          }
+
+          const styles = StyleSheet.create({
+            root: {
+              flex: 1,
+              backgroundColor: '#050805'
+            },
+            container: {
+              padding: 18,
+              paddingBottom: 40
+            },
+            title: {
+              color: '#d6ffd6',
+              fontSize: 23,
+              fontWeight: '800',
+              textAlign: 'center',
+              marginTop: 16
+            },
+            subtitle: {
+              color: '#9fb79f',
+              fontSize: 14,
+              textAlign: 'center',
+              marginBottom: 20
+            },
+            card: {
+              backgroundColor: '#0d160d',
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: '#1e3a1e'
+            },
+            cardTitle: {
+              color: '#f0d98a',
+              fontSize: 18,
+              fontWeight: '700',
+              marginBottom: 12
+            },
+            input: {
+              backgroundColor: '#071007',
+              color: '#ffffff',
+              borderWidth: 1,
+              borderColor: '#294029',
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 12,
+              fontSize: 15
+            },
+            notes: {
+              minHeight: 90,
+              textAlignVertical: 'top'
+            },
+            button: {
+              backgroundColor: '#d8b94a',
+              padding: 14,
+              borderRadius: 14,
+              alignItems: 'center',
+              marginTop: 4
+            },
+            buttonText: {
+              color: '#081008',
+              fontSize: 17,
+              fontWeight: '800'
+            },
+            line: {
+              color: '#d7e6d7',
+              fontSize: 15,
+              marginBottom: 8,
+              lineHeight: 22
+            }
+          });
+          EOF
+
+          python3 - <<'PY'
+          import base64
+          png = b'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAARUlEQVR42u3OQQ0AIAwAsQn/nkUuCkYhVQK7zXvVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgG4YAAAGDNo1EAAAAAElFTkSuQmCC'
+          open('icon.png','wb').write(base64.b64decode(png))
+          PY
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
-      - name: Install EAS CLI
-        run: npm install -g eas-cli@latest
+      - name: Install EAS
+        run: npm install -g eas-cli
 
-      - name: Check Expo login
+      - name: Build Android APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas whoami
-
-      - name: Build APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile apk --non-interactive --wait
+        run: eas build -p android --profile preview --non-interactive
