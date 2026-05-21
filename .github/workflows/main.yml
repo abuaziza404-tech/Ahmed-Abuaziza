@@ -60,9 +60,7 @@ jobs:
               "version": "12.5.1",
               "orientation": "portrait",
               "userInterfaceStyle": "dark",
-              "assetBundlePatterns": [
-                "**/*"
-              ],
+              "assetBundlePatterns": ["**/*"],
               "android": {
                 "package": "com.abuaziza.bouhgoldpro",
                 "versionCode": 12501,
@@ -87,11 +85,6 @@ jobs:
                 "android": {
                   "buildType": "apk"
                 }
-              },
-              "production": {
-                "android": {
-                  "buildType": "app-bundle"
-                }
               }
             }
           }
@@ -110,11 +103,15 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Setup Expo EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Check Expo login
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas whoami
 
       - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile apk --non-interactive --wait
